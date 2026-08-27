@@ -1,0 +1,27 @@
+# runtime state — regenerated on every run, never commit
+save/
+*.tmp
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# model weights / cached checkpoints
+*.pt
+*.pth
+*.onnx
+*.engine
+~/.cache/torch/
+
+# test clips (drop sample videos here without committing them)
+clips/
+
+# editors & os
+.vscode/
+.idea/
+.DS_Store
+*.swp

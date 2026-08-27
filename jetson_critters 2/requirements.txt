@@ -1,0 +1,15 @@
+# Core — install these with pip on the Jetson
+pygame>=2.5.0
+numpy>=1.23
+requests>=2.28
+opencv-python>=4.8 ; platform_machine != "aarch64"
+
+# On a Jetson, OpenCV ships with JetPack (built with GStreamer/CUDA support).
+# Do NOT pip-install opencv-python there — it will shadow the JetPack build and
+# break the nvarguscamerasrc pipeline. Verify with:
+#   python3 -c "import cv2; print(cv2.getBuildInformation())" | grep -i gstreamer
+
+# torch + torchvision are NOT listed here on purpose.
+# Install the NVIDIA-built wheels that match your JetPack version:
+#   https://developer.download.nvidia.com/compute/redist/jp/
+# Off-device (x86 dev machine) plain `pip install torch torchvision` is fine.
