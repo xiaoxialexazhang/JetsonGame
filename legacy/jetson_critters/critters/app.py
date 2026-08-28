@@ -7,6 +7,7 @@ from typing import Optional
 
 import pygame
 
+from .appearance import analyse, load_segmenter
 from .camera import Camera
 from .chat import OllamaChat
 from .config import Config
@@ -53,6 +54,11 @@ class App:
             self.recognizer, config.confidence_threshold, config.capture_streak
         )
 
+        # Appearance runs once per capture, not per frame, so it can afford a
+        # second network. Loading it here keeps the first capture from stalling.
+        self.segmenter = load_segmenter(config.appearance_enabled)
+        self.last_appearance = None
+
         self.chat = OllamaChat(
             config.ollama_url, config.ollama_model, config.llm_timeout, config.llm_max_history
         )
@@ -82,7 +88,9 @@ class App:
         if not self.world.can_capture(detection.species_key, self.cfg.capture_cooldown):
             return
         snapshot = self._save_snapshot(frame, detection.species_key)
-        critter = self.world.add_critter(detection.species_key, snapshot)
+        look = analyse(frame, self.segmenter) if self.cfg.appearance_enabled else None
+        self.last_appearance = look
+        critter = self.world.add_critter(detection.species_key, snapshot, look)
         if self.world.selected_id is None:
             self.world.selected_id = critter.id
         self.world.save()
@@ -193,7 +201,9 @@ class App:
                 self.camera_ok,
             )
             self.ui.draw_world(self.world, t)
-            self.ui.draw_camera(frame, self.worker, self.camera.error, self._cooldown_left())
+            self.ui.draw_camera(
+                frame, self.worker, self.camera.error, self._cooldown_left(), self.last_appearance
+            )
             self.ui.draw_chat(self.world.selected, self.input_text, self.input_focused, t)
             pygame.display.flip()
 

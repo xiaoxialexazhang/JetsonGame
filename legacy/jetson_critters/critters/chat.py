@@ -14,11 +14,14 @@ import requests
 
 from .world import Critter, Message
 
-SYSTEM_TEMPLATE = """You are {name}, a {species} living in a small sanctuary on someone's desk.
+SYSTEM_TEMPLATE = """You are {name}, {look}, living in a small sanctuary on someone's desk.
 
 Your nature: {persona}
 
 A personal quirk of yours: you are {trait}.
+
+What you look like: {look}. You may refer to your own colouring if it comes up,
+but do not bring it up in every reply.
 
 Rules for how you speak:
 - You are an animal, not an assistant. Never offer help, lists, or advice unless it's animal advice.
@@ -67,7 +70,7 @@ class OllamaChat:
         sp = critter.species
         return SYSTEM_TEMPLATE.format(
             name=critter.name,
-            species=sp.display.lower(),
+            look=critter.look,  # "a black and white cat with yellow eyes"
             persona=sp.persona,
             trait=critter.trait or "unremarkable, and a bit sensitive about it",
         )

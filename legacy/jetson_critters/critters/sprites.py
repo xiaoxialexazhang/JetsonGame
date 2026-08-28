@@ -35,7 +35,10 @@ def draw_critter(surf, critter, t: float, selected: bool = False) -> None:
         pygame.draw.ellipse(ring, (255, 226, 120, 90), ring.get_rect(), width=max(2, int(3 * s)))
         surf.blit(ring, (x - 55 * s, critter.y + 8 * s))
 
-    body, belly, accent = sp.body, sp.belly, sp.accent
+    # Per-critter palette read off the captured photo, falling back to the flat
+    # species colours when appearance extraction found nothing.
+    body, belly, accent = critter.palette
+    iris = critter.eye_colour
 
     # legs
     leg_w = max(3, int(5 * s))
@@ -119,8 +122,11 @@ def draw_critter(surf, critter, t: float, selected: bool = False) -> None:
     if blink:
         pygame.draw.line(surf, (30, 26, 24), (eye_x - 3 * s, hy - 2 * s), (eye_x + 3 * s, hy - 2 * s), max(1, int(2 * s)))
     else:
-        _ellipse(surf, (30, 26, 24), eye_x, hy - 2 * s, 2.6 * s, 3.0 * s)
-        _ellipse(surf, (255, 255, 255), eye_x + 0.9 * s, hy - 3.2 * s, 0.9 * s, 0.9 * s)
+        # iris, then pupil, then catchlight — a flat dark oval reads as a bead
+        # and throws away the eye colour we just went to the trouble of finding
+        _ellipse(surf, iris, eye_x, hy - 2 * s, 2.8 * s, 3.2 * s)
+        _ellipse(surf, (26, 22, 20), eye_x, hy - 2 * s, 1.3 * s, 2.6 * s)
+        _ellipse(surf, (255, 255, 255), eye_x + 1.1 * s, hy - 3.4 * s, 0.85 * s, 0.85 * s)
     _ellipse(surf, (60, 44, 44), mx + 2 * s * face, hy + 3 * s, 1.8 * s, 1.4 * s)
 
     if critter.thinking:

@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/input/*
+data/crops/*
+data/avatars/*
+data/specs/*
+data/critters.json
+data/contact_sheet.png
+data/_tmp.png
+!data/**/.gitkeep
+.DS_Store

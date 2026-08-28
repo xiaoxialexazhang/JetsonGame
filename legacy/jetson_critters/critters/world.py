@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from .appearance import Appearance
 from .species import SPECIES, random_name, random_trait
 
 
@@ -35,6 +36,7 @@ class Critter:
     facing: int = 1
     captured_at: float = field(default_factory=time.time)
     snapshot: Optional[str] = None
+    appearance: Optional[Appearance] = None
     history: List[Message] = field(default_factory=list)
 
     # transient, not persisted
@@ -45,6 +47,30 @@ class Critter:
     @property
     def species(self):
         return SPECIES[self.species_key]
+
+    # -- appearance, with the species palette as the fallback --------------
+    @property
+    def palette(self) -> tuple:
+        """(body, belly, accent). From the photo when we managed to read it."""
+        sp = self.species
+        if self.appearance is not None:
+            derived = self.appearance.palette()
+            if derived is not None:
+                return derived
+        return sp.body, sp.belly, sp.accent
+
+    @property
+    def eye_colour(self) -> tuple:
+        if self.appearance is not None and self.appearance.eye is not None:
+            return self.appearance.eye
+        return (30, 26, 24)
+
+    @property
+    def look(self) -> str:
+        """Short description for the chat header and the LLM system prompt."""
+        if self.appearance is None or not self.appearance.coat_names:
+            return self.species.display.lower()
+        return self.appearance.describe(self.species.display)
 
     @property
     def radius(self) -> float:
@@ -91,6 +117,7 @@ class Critter:
             "scale": self.scale,
             "captured_at": self.captured_at,
             "snapshot": self.snapshot,
+            "appearance": self.appearance.to_dict() if self.appearance else None,
             "history": [{"role": m.role, "text": m.text, "ts": m.ts} for m in self.history],
         }
 
@@ -106,6 +133,7 @@ class Critter:
             scale=data.get("scale", 1.0),
             captured_at=data.get("captured_at", time.time()),
             snapshot=data.get("snapshot"),
+            appearance=Appearance.from_dict(data.get("appearance")),
         )
         c.history = [Message(m["role"], m["text"], m.get("ts", 0.0)) for m in data.get("history", [])]
         return c
@@ -125,7 +153,8 @@ class World:
         last = self.last_capture_at.get(species_key, 0.0)
         return (time.time() - last) >= cooldown
 
-    def add_critter(self, species_key: str, snapshot: Optional[str] = None) -> Critter:
+    def add_critter(self, species_key: str, snapshot: Optional[str] = None,
+                    appearance: Optional[Appearance] = None) -> Critter:
         left, top, right, bottom = self.bounds
         taken = [c.name for c in self.critters]
         critter = Critter(
@@ -135,11 +164,16 @@ class World:
             x=random.uniform(left + 80, right - 80),
             y=random.uniform(top + 80, bottom - 80),
             snapshot=snapshot,
+            appearance=appearance,
         )
         critter.history.append(Message("assistant", SPECIES[species_key].greeting))
         self.critters.append(critter)
         self.last_capture_at[species_key] = time.time()
-        self.toast = (f"{critter.name} the {SPECIES[species_key].display.lower()} joined you!", time.time())
+        if appearance is not None and appearance.coat_names:
+            what = appearance.coat_phrase + " " + SPECIES[species_key].display.lower()
+        else:
+            what = SPECIES[species_key].display.lower()
+        self.toast = (f"{critter.name} the {what} joined you!", time.time())
         return critter
 
     def release(self, critter_id: str) -> None:

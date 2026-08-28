@@ -48,6 +48,12 @@ class Config:
     # seconds before the same species can be captured again
     capture_cooldown: float = field(default_factory=lambda: _env("CRITTERS_COOLDOWN", 12.0))
 
+    # ---- appearance ---------------------------------------------------
+    # Coat + eye colour from the captured frame. Set false to skip the
+    # segmentation network entirely and keep the flat species palettes.
+    appearance_enabled: bool = field(default_factory=lambda: _env("CRITTERS_APPEARANCE", True))
+    appearance_infer_size: int = field(default_factory=lambda: _env("CRITTERS_APPEARANCE_SIZE", 320))
+
     # ---- llm ----------------------------------------------------------
     ollama_url: str = field(default_factory=lambda: str(_env("OLLAMA_URL", "http://127.0.0.1:11434")))
     ollama_model: str = field(default_factory=lambda: str(_env("OLLAMA_MODEL", "llama3.2:3b")))

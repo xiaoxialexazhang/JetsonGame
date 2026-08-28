@@ -134,6 +134,45 @@ def main() -> int:
     check("system prompt names the critter", critter.name in prompt)
     check("system prompt carries the persona", critter.species.persona[:30] in prompt)
 
+    print("\n=== appearance ===")
+    from critters.appearance import Appearance, analyse, load_segmenter, name_coat_colour, name_eye_colour
+
+    check("white fur is not called silver", name_coat_colour((200, 199, 203)) == "white",
+          "photographed white sits near L 0.78, not 1.0")
+    check("mid grey stays grey", name_coat_colour((128, 128, 128)) == "grey")
+    check("dark warm fur is brown not ginger", name_coat_colour((120, 80, 45)) == "brown")
+    check("pale warm fur is cream", name_coat_colour((240, 220, 180)) == "cream")
+    check("yellow iris named yellow", name_eye_colour((149, 144, 96)) == "yellow")
+    check("dark warm iris named brown", name_eye_colour((110, 70, 40)) == "brown")
+
+    # a synthetic animal: black body, white belly, two yellow eyes on a flat bg
+    synth = np.full((240, 320, 3), 210, np.uint8)                      # background
+    import cv2 as _cv2
+    _cv2.ellipse(synth, (160, 140), (95, 70), 0, 0, 360, (35, 35, 35), -1)   # body
+    _cv2.ellipse(synth, (160, 175), (60, 30), 0, 0, 360, (205, 205, 205), -1)  # belly
+    _cv2.circle(synth, (132, 95), 9, (70, 200, 225), -1)               # left eye  (BGR)
+    _cv2.circle(synth, (188, 95), 9, (70, 200, 225), -1)               # right eye
+    look = analyse(synth, load_segmenter(prefer_model=False))
+    check("coat read as black and white", look.coat_phrase == "black and white", look.coat_phrase)
+    check("both eyes located", len(look.eye_points) == 2, f"{look.eye_points}")
+    check("eye colour read as yellow", look.eye_name in ("yellow", "amber"), str(look.eye))
+    check("paired eyes score high confidence", look.confidence > 0.7, f"{look.confidence:.2f}")
+
+    tux = app.world.add_critter("cat", appearance=look)
+    body, belly, accent = tux.palette
+    check("dark coat becomes the sprite body", sum(body) < sum(belly), f"body={body} belly={belly}")
+    check("dark body gets a lighter accent, not a darker one", sum(accent) > sum(body),
+          f"accent={accent}")
+    check("sprite eye colour comes from the photo", tux.eye_colour == look.eye)
+    check("look phrase reaches the persona", look.coat_phrase in app.chat._system_prompt(tux))
+
+    check("appearance survives a dict round trip",
+          Appearance.from_dict(look.to_dict()).coat_phrase == look.coat_phrase)
+
+    plain = app.world.add_critter("goat")
+    check("critters without appearance fall back to the species palette",
+          plain.palette == (plain.species.body, plain.species.belly, plain.species.accent))
+
     print("\n=== interaction ===")
     import pygame as pg
 
@@ -184,6 +223,12 @@ def main() -> int:
           f"{len(reloaded.critters)} restored")
     check("reload restores chat history",
           any(len(c.history) > 1 for c in reloaded.critters))
+    restored = next((c for c in reloaded.critters if c.appearance and c.appearance.eye), None)
+    check("reload restores appearance", restored is not None)
+    if restored is not None:
+        check("restored palette matches the saved one", restored.palette == tux.palette,
+              f"{restored.palette}")
+        check("restored eye colour matches", restored.eye_colour == tux.eye_colour)
 
     print("\n=== manual spawn (demo without hardware) ===")
     app2 = App(cfg, headless=True, max_frames=1)

@@ -21,6 +21,40 @@ That's the whole thing. No coins, no trading, no economy.
 - Trading, marketplace, inventory value
 - Levelling, quests, breeding
 
+## Appearance
+
+Species recognition says *what* the animal is. A second pass says *which one* —
+so your black-and-white cat with yellow eyes doesn't arrive as the same beige
+cat everyone else gets.
+
+Three stages, each falling back if the one above it fails:
+
+1. **Segment** the animal from the background — DeepLabV3-MobileNetV3
+   (torchvision, VOC labels: cat/dog/cow/horse/bird/sheep). GrabCut if torch
+   isn't there.
+2. **Coat** — k-means the masked pixels in CIELAB, name the dominant clusters.
+   Two colours above 18% become `"black and white"`, dark listed first.
+3. **Eyes** — find small blobs in the top 60% of the animal that differ in
+   *chroma* from their own neighbourhood, then score them in pairs.
+
+Runs once per capture, not per frame. ~120 ms with DeepLab on an Orin Nano,
+~400 ms on the GrabCut fallback. Set `CRITTERS_APPEARANCE=0` to skip it and keep
+the flat species palettes.
+
+The result drives four things: the sprite's palette and eye colour, the LLM
+system prompt (`You are Sable, a black and white cat with yellow eyes…`), the
+capture toast, and a swatch readout under the camera preview.
+
+**Why chroma and not saturation, or lightness.** Thresholding on absolute
+saturation finds the eyes on a tuxedo cat and nothing at all on a ginger one,
+where the coat is as saturated as the iris. Switching to full-Lab local contrast
+fixes ginger but then fires on every ear tip, because those are big *lightness*
+steps. Distance in the a/b plane with L discarded keeps only what an eye
+reliably has and a fur boundary doesn't.
+
+Failure is silent and safe: a black cat with dark eyes has no chroma signal at
+all, finds nothing, and falls back to the species defaults.
+
 ## Species
 
 `cat` · `goat` · `dog` · `cow` · `horse` · `bird` · `rabbit`
@@ -41,6 +75,10 @@ On the Jetson:
 ```bash
 pip install pygame numpy requests
 ```
+
+Appearance extraction adds no new dependency — DeepLabV3-MobileNetV3 ships in
+the same torchvision you already need for the classifier, and its weights
+download on first run.
 
 Do **not** `pip install opencv-python` on a Jetson — JetPack already ships an
 OpenCV built with GStreamer, and the pip wheel will shadow it and break the CSI
@@ -106,6 +144,8 @@ Everything below is settable by flag or env var; see `critters/config.py`.
 | Seconds before re-capturing a species | `CRITTERS_COOLDOWN` | `12` |
 | Run inference every N frames | `CRITTERS_INFER_EVERY` | `5` |
 | Classifier | `CRITTERS_MODEL` | `mobilenet_v3_large` |
+| Coat + eye colour | `CRITTERS_APPEARANCE` | `1` |
+| Segmentation input size | `CRITTERS_APPEARANCE_SIZE` | `320` |
 | Local model | `OLLAMA_MODEL` | `llama3.2:3b` |
 
 If capture feels sluggish on an Orin Nano, raise `CRITTERS_INFER_EVERY` — the
@@ -132,6 +172,7 @@ critters/
   config.py       every tunable, env-overridable
   camera.py       threaded CSI / USB / file capture
   vision.py       classifier + ImageNet→species folding + capture streak
+  appearance.py   segmentation + coat colour + eye colour
   species.py      the roster: recognition, appearance, persona
   world.py        critters, wandering, selection, save/load
   chat.py         Ollama client, personas, threaded requests
@@ -150,3 +191,11 @@ save/             sanctuary.json + capture snapshots (created on first run)
   the save file but aren't sent to the model.
 - The persona holds well for a few turns on a 3B model, then drifts. Bigger model
   or a periodic system-prompt reinjection if that matters.
+- Coat colour is read under whatever light the room has. There is no white
+  balance step, so a warm bulb pushes a white cat toward cream. Grey-world
+  normalising the masked pixels before k-means would fix most of it.
+- Eye colour needs chroma to work with. Dark eyes on a dark face return nothing
+  and fall back to the species default — deliberately, since guessing here
+  looks worse than not guessing.
+- Coat naming is two colours at most. A calico reads as its two dominant
+  patches; tabby striping is averaged away rather than described as striping.

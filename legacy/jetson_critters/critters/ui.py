@@ -206,7 +206,8 @@ class Ui:
                 world.toast = None
 
     # -- camera -----------------------------------------------------------
-    def draw_camera(self, frame, worker, cam_error: Optional[str], cooldown_left: float) -> None:
+    def draw_camera(self, frame, worker, cam_error: Optional[str], cooldown_left: float,
+                    appearance=None) -> None:
         self._panel(self.cam_rect, "Camera")
         view = pygame.Rect(self.cam_rect.x + 10, self.cam_rect.y + 36, self.cam_rect.w - 20, int((self.cam_rect.w - 20) * 9 / 16))
 
@@ -245,6 +246,27 @@ class Ui:
             )
             self.screen.blit(self.f_tiny.render("hold steady…", True, ACCENT), (bar.x, bar.bottom + 4))
 
+        # --- last appearance read, with swatches ---------------------------
+        ay = bar.bottom + 22
+        if appearance is not None and appearance.coat_names:
+            sw = pygame.Rect(view.x, ay, 14, 14)
+            for rgb in appearance.coat[:3]:
+                pygame.draw.rect(self.screen, rgb, sw, border_radius=3)
+                pygame.draw.rect(self.screen, PANEL_EDGE, sw, width=1, border_radius=3)
+                sw = sw.move(18, 0)
+            if appearance.eye:
+                sw = sw.move(8, 0)
+                pygame.draw.rect(self.screen, appearance.eye, sw, border_radius=7)
+                pygame.draw.rect(self.screen, PANEL_EDGE, sw, width=1, border_radius=7)
+                sw = sw.move(20, 0)
+            txt = appearance.coat_phrase
+            if appearance.eye_name:
+                txt += f" · {appearance.eye_name} eyes {appearance.confidence:.0%}"
+            self.screen.blit(self.f_tiny.render(txt, True, TEXT), (sw.x + 2, ay + 1))
+            self.screen.blit(
+                self.f_tiny.render(appearance.mask_source, True, MUTED), (view.x, ay + 20)
+            )
+
     # -- chat -------------------------------------------------------------
     def draw_chat(self, critter, input_text: str, focused: bool, t: float) -> None:
         self._panel(self.chat_rect)
@@ -255,9 +277,8 @@ class Ui:
             self.screen.blit(self.f_small.render(hint, True, MUTED), (self.chat_rect.x + 12, self.chat_rect.y + 38))
             return
 
-        sp = critter.species
         self.screen.blit(self.f_head.render(critter.name, True, TEXT), (self.chat_rect.x + 12, self.chat_rect.y + 10))
-        sub = f"{sp.display} · {critter.trait}"
+        sub = f"{critter.look} · {critter.trait}"
         for i, line in enumerate(wrap(sub, self.f_tiny, self.chat_rect.w - 24)[:2]):
             self.screen.blit(self.f_tiny.render(line, True, MUTED), (self.chat_rect.x + 12, self.chat_rect.y + 34 + i * 14))
         pygame.draw.line(
