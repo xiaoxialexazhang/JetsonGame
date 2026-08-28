@@ -3,7 +3,8 @@ pygame>=2.5.0
 numpy>=1.24
 Pillow>=10.0
 python-dotenv>=1.0.0
-# On Jetson prefer the apt build:  sudo apt install -y python3-opencv
-# and then `pip install -r requirements.txt --no-deps opencv-python` is NOT needed.
-# On a laptop, uncomment:
-# opencv-python>=4.8
+
+# OpenCV: installed from pip everywhere except aarch64 (Jetson), where the
+# JetPack apt build must win so the GStreamer/CSI camera paths keep working.
+#   Jetson:  sudo apt install -y python3-opencv
+opencv-python>=4.8; platform_machine != "aarch64"

@@ -2,6 +2,7 @@
 the pygame loop can grab it every tick without ever blocking on the driver."""
 from __future__ import annotations
 
+import sys
 import threading
 import time
 from datetime import datetime
@@ -26,14 +27,31 @@ class Camera:
 
     # ------------------------------------------------------------------
     def _open(self):
-        # V4L2 is the right backend for a USB cam on Jetson.
-        cap = cv2.VideoCapture(self.index, cv2.CAP_V4L2)
-        if not cap.isOpened():
-            cap = cv2.VideoCapture(self.index)   # fall back to default backend
-        if not cap.isOpened():
-            self.error = f"could not open camera {self.index}"
+        # V4L2 is right on Jetson/Linux; AVFoundation is right on macOS. Asking
+        # for V4L2 on a Mac just wastes a couple of seconds failing.
+        if sys.platform == "darwin":
+            backends_to_try = [cv2.CAP_AVFOUNDATION, cv2.CAP_ANY]
+        elif sys.platform.startswith("linux"):
+            backends_to_try = [cv2.CAP_V4L2, cv2.CAP_ANY]
+        else:
+            backends_to_try = [cv2.CAP_ANY]
+
+        cap = None
+        for backend in backends_to_try:
+            cap = cv2.VideoCapture(self.index, backend)
+            if cap.isOpened():
+                break
+            cap.release()
+            cap = None
+        if cap is None:
+            self.error = (f"could not open camera {self.index}"
+                          + (" -- on macOS, grant Camera permission to your terminal in "
+                             "System Settings > Privacy & Security > Camera"
+                             if sys.platform == "darwin" else ""))
             return None
-        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+        if sys.platform.startswith("linux"):
+            # MJPG lets a USB cam hit 720p30 over USB2; AVFoundation dislikes it
+            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAM_W)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAM_H)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)

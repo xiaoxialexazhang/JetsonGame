@@ -8,7 +8,6 @@ data/crops/*
 data/avatars/*
 data/specs/*
 data/critters.json
-data/contact_sheet.png
-data/_tmp.png
+data/*.png
 !data/**/.gitkeep
 .DS_Store

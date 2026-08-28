@@ -21,8 +21,10 @@ for _d in (INPUT_DIR, CROP_DIR, AVATAR_DIR, SPEC_DIR):
 # ---------------------------------------------------------------- api
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
-VISION_MODEL = os.getenv("VISION_MODEL", "claude-sonnet-4-5")
-ARTIST_MODEL = os.getenv("ARTIST_MODEL", "claude-sonnet-4-5")
+# Per-stage models. The artist is the one worth spending on -- it decides how
+# good the sprite looks. Vision and chat are easy work; keep them fast and cheap.
+VISION_MODEL = os.getenv("VISION_MODEL", "claude-sonnet-5")
+ARTIST_MODEL = os.getenv("ARTIST_MODEL", "claude-opus-5")
 CHAT_MODEL = os.getenv("CHAT_MODEL", "claude-haiku-4-5-20251001")
 
 # Set OFFLINE=1 to force the fully-local path even when a key and wifi exist.

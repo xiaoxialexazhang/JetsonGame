@@ -34,7 +34,34 @@ Rehearse the offline path deliberately with `python3 main.py --offline`
 
 Jetson Orin Nano · monitor · USB webcam · keyboard + mouse.
 
-## Setup
+## Running it on a Mac first
+
+You do not need the Jetson to develop this. The Mac's built-in webcam works,
+and it's a much faster loop.
+
+```bash
+cd ~/JetsonGame
+bash setup_mac.sh             # venv + deps, creates .env
+nano .env                     # paste ANTHROPIC_API_KEY
+source .venv/bin/activate
+python3 main.py               # webcam + Claude, the full thing
+```
+
+The one macOS gotcha: the terminal app running python needs camera permission
+under **System Settings → Privacy & Security → Camera**, and you have to
+restart the terminal after granting it. If the preview panel is black, that's
+why. `python3 main.py --no-camera` sidesteps it entirely.
+
+Models are per-stage and set in `.env`. The artist is the stage worth paying
+for — it decides how the sprite looks:
+
+```
+VISION_MODEL=claude-sonnet-5              # identify the animal
+ARTIST_MODEL=claude-opus-5                # draw it (spend here)
+CHAT_MODEL=claude-haiku-4-5-20251001      # dialogue, wants to be fast
+```
+
+## Setup on the Jetson
 
 ```bash
 git clone git@github.com:xiaoxialexazhang/JetsonGame.git && cd JetsonGame
