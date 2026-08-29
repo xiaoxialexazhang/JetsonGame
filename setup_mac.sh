@@ -21,7 +21,7 @@ pip install -r requirements.txt
 if [ ! -f .env ]; then
   cp .env.example .env
   echo ""
-  echo "==> created .env -- open it and paste your ANTHROPIC_API_KEY"
+  echo "==> created .env -- open it and paste your INFERENCE_API_KEY"
 fi
 
 cat <<'EOF'

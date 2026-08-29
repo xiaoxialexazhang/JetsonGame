@@ -19,13 +19,33 @@ for _d in (INPUT_DIR, CROP_DIR, AVATAR_DIR, SPEC_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------- api
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+# Works against a corporate gateway (NVIDIA's inference-api, which fronts
+# Bedrock) or against api.anthropic.com directly. INFERENCE_API_KEY is the
+# preferred name; ANTHROPIC_API_KEY still works so old .env files don't break.
+API_KEY = os.getenv("INFERENCE_API_KEY", "") or os.getenv("ANTHROPIC_API_KEY", "")
+API_ENDPOINT = (os.getenv("DEFAULT_ENDPOINT", "")
+                or os.getenv("API_ENDPOINT", "")
+                or "https://api.anthropic.com").rstrip("/")
+
+# Request shape the endpoint speaks: "auto" probes once on first use and caches.
+# Pin to "openai" or "anthropic" to skip the probe.
+API_STYLE = os.getenv("API_STYLE", "auto").strip().lower()
+
+# Back-compat alias -- some older code and tools read this name.
+ANTHROPIC_API_KEY = API_KEY
 
 # Per-stage models. The artist is the one worth spending on -- it decides how
 # good the sprite looks. Vision and chat are easy work; keep them fast and cheap.
-VISION_MODEL = os.getenv("VISION_MODEL", "claude-sonnet-5")
-ARTIST_MODEL = os.getenv("ARTIST_MODEL", "claude-opus-5")
-CHAT_MODEL = os.getenv("CHAT_MODEL", "claude-haiku-4-5-20251001")
+# Each falls back to DEFAULT_MODEL, so a single line in .env configures all three.
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "claude-opus-5")
+VISION_MODEL = os.getenv("VISION_MODEL", "") or DEFAULT_MODEL
+ARTIST_MODEL = os.getenv("ARTIST_MODEL", "") or DEFAULT_MODEL
+CHAT_MODEL = os.getenv("CHAT_MODEL", "") or DEFAULT_MODEL
+
+
+def model_for(_style: str = "") -> str:
+    """A model name safe to use for a throwaway probe/health-check call."""
+    return DEFAULT_MODEL
 
 # Set OFFLINE=1 to force the fully-local path even when a key and wifi exist.
 # Use this to rehearse the demo exactly as it will run if the venue wifi dies.

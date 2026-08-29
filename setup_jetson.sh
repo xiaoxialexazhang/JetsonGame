@@ -21,7 +21,7 @@ v4l2-ctl --list-devices 2>/dev/null || true
 if [ ! -f .env ]; then
   cp .env.example .env
   echo ""
-  echo "==> created .env -- open it and paste your ANTHROPIC_API_KEY"
+  echo "==> created .env -- open it and paste your INFERENCE_API_KEY"
 fi
 
 echo ""

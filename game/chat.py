@@ -77,14 +77,13 @@ class Conversation:
     # ------------------------------------------------------------------
     def _claude(self) -> str:
         from pipeline import llm
-        resp = llm.client().messages.create(
-            model=config.CHAT_MODEL,
+        return llm.converse(
+            config.CHAT_MODEL,
+            self.system,
+            self.history[-12:],
             max_tokens=180,
             temperature=1.0,
-            system=self.system,
-            messages=self.history[-12:],
-        )
-        return "".join(bl.text for bl in resp.content if bl.type == "text").strip()
+        ).strip()
 
     def _ollama(self) -> str:
         payload = {

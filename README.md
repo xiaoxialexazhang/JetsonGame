@@ -42,7 +42,7 @@ and it's a much faster loop.
 ```bash
 cd ~/JetsonGame
 bash setup_mac.sh             # venv + deps, creates .env
-nano .env                     # paste ANTHROPIC_API_KEY
+nano .env                     # paste INFERENCE_API_KEY + DEFAULT_ENDPOINT
 source .venv/bin/activate
 python3 main.py               # webcam + Claude, the full thing
 ```
@@ -52,21 +52,48 @@ under **System Settings → Privacy & Security → Camera**, and you have to
 restart the terminal after granting it. If the preview panel is black, that's
 why. `python3 main.py --no-camera` sidesteps it entirely.
 
-Models are per-stage and set in `.env`. The artist is the stage worth paying
-for — it decides how the sprite looks:
+## Which API endpoint
+
+The client in `pipeline/llm.py` talks to **either** an OpenAI-compatible or an
+Anthropic-compatible endpoint, so the same code works against a corporate
+gateway and against Anthropic directly. Two lines in `.env` decide:
 
 ```
-VISION_MODEL=claude-sonnet-5              # identify the animal
-ARTIST_MODEL=claude-opus-5                # draw it (spend here)
-CHAT_MODEL=claude-haiku-4-5-20251001      # dialogue, wants to be fast
+INFERENCE_API_KEY='sk-...'
+DEFAULT_ENDPOINT=https://inference-api.nvidia.com     # NVIDIA gateway (Bedrock)
 ```
+
+```
+INFERENCE_API_KEY=sk-ant-api03-...
+DEFAULT_ENDPOINT=https://api.anthropic.com            # Anthropic direct
+```
+
+Auth goes out as `Authorization: Bearer` (plus `x-api-key` on the Anthropic
+shape, so one config satisfies both). The request shape is **probed once** on
+the first call and cached — pin it with `API_STYLE=openai` or `anthropic` to
+skip the probe.
+
+Model names differ by endpoint. The gateway prefixes them
+(`aws/anthropic/bedrock-claude-opus-5`); Anthropic direct does not
+(`claude-opus-5`). Every stage falls back to `DEFAULT_MODEL`, so one line gets
+you running, and you override per stage once you know what's available:
+
+```
+DEFAULT_MODEL=aws/anthropic/bedrock-claude-opus-5
+#VISION_MODEL=...     # identify the animal
+#ARTIST_MODEL=...     # draw it (spend here — it decides how the sprite looks)
+#CHAT_MODEL=...       # dialogue, wants to be fast
+```
+
+`python3 tools/test_api.py --models` lists what your endpoint actually offers,
+which is the fastest way to fix a `400`.
 
 ## Setup on the Jetson
 
 ```bash
 git clone git@github.com:xiaoxialexazhang/JetsonGame.git && cd JetsonGame
 bash setup_jetson.sh          # apt deps, venv, pip, camera check
-nano .env                     # paste ANTHROPIC_API_KEY (optional -- see above)
+nano .env                     # paste INFERENCE_API_KEY + DEFAULT_ENDPOINT (optional)
 ```
 
 For the on-device recognizer, also install torch + torchvision from NVIDIA's
@@ -86,7 +113,7 @@ Do these one at a time. Each step isolates one thing that can break.
 source .venv/bin/activate
 
 # 0. what can this machine reach right now?
-python3 -c "from pipeline import backends; backends.refresh()"
+python3 tools/test_api.py            # endpoint, key, and all three models
 
 # 1. rasteriser only -- no API, no camera. Look at data/contact_sheet.png.
 python3 tools/contact_sheet.py
@@ -138,7 +165,7 @@ pipeline/
   persona.py              stage 5  Claude, or local name/persona tables
   roster.py               data/critters.json read/write (no LLM imports)
   orchestrator.py         runs 1-5, appends to the roster
-  llm.py                  Anthropic client (imported lazily), JSON extraction
+  llm.py                  OpenAI/Anthropic-shape client + JSON extraction
 game/
   world.py                main loop, input, job draining
   critter.py              a wandering, clickable sprite

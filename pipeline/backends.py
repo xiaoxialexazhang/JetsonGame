@@ -16,6 +16,7 @@ stage needing to know about the others.
 from __future__ import annotations
 
 import socket
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 
@@ -50,12 +51,19 @@ def _tcp_reachable(host: str, port: int, timeout: float) -> bool:
         return False
 
 
+def _endpoint_host() -> tuple[str, int]:
+    """(host, port) of the configured gateway, whatever it is."""
+    u = urllib.parse.urlparse(config.API_ENDPOINT)
+    return u.hostname or "api.anthropic.com", u.port or (80 if u.scheme == "http" else 443)
+
+
 def _claude_ok(timeout: float) -> bool:
     if config.OFFLINE:
         return False
-    if not config.ANTHROPIC_API_KEY:
+    if not config.API_KEY:
         return False
-    return _tcp_reachable("api.anthropic.com", 443, timeout)
+    host, port = _endpoint_host()
+    return _tcp_reachable(host, port, timeout)
 
 
 def _ollama_ok(timeout: float) -> bool:
@@ -83,10 +91,10 @@ def detect(timeout: float = 2.0) -> Backends:
     )
     if config.OFFLINE:
         b.note = "OFFLINE=1, Claude disabled by config"
-    elif not config.ANTHROPIC_API_KEY:
-        b.note = "no ANTHROPIC_API_KEY"
+    elif not config.API_KEY:
+        b.note = "no INFERENCE_API_KEY"
     elif not b.claude:
-        b.note = "api.anthropic.com unreachable"
+        b.note = f"{_endpoint_host()[0]} unreachable"
     print(f"[backends] {b.summary()}" + (f"   ({b.note})" if b.note else ""))
     return b
 
@@ -97,5 +105,12 @@ CURRENT = Backends()
 
 def refresh(timeout: float = 2.0) -> Backends:
     global CURRENT
+    # Forget the cached request-shape probe too, so the in-game C key recovers
+    # cleanly if the endpoint changed or the first probe ran with no network.
+    try:
+        from pipeline import llm
+        llm.reset_style()
+    except Exception:      # noqa: BLE001 - llm is optional on the local path
+        pass
     CURRENT = detect(timeout)
     return CURRENT
